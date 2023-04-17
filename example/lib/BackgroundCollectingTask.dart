@@ -72,7 +72,7 @@ class BackgroundCollectingTask extends Model {
   static Future<BackgroundCollectingTask> connect(
       BluetoothDevice server) async {
     final BluetoothConnection connection =
-        await BluetoothConnection.toAddress(server.address);
+        await BluetoothConnection.toAddress(server.address, "");
     return BackgroundCollectingTask._fromConnection(connection);
   }
 

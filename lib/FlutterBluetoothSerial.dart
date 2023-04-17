@@ -259,7 +259,7 @@ class FlutterBluetoothSerial {
 
   @Deprecated('Use `BluetoothConnection.toAddress(address)` instead')
   Future<void> connectToAddress(String? address) => Future(() async {
-        _defaultConnection = await BluetoothConnection.toAddress(address);
+        _defaultConnection = await BluetoothConnection.toAddress(address, "");
       });
 
   @Deprecated(

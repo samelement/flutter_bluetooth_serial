@@ -985,7 +985,13 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                         break;
                     }
 
+                    if (!call.hasArgument("uuid")) {
+                        result.error("invalid_argument", "argument 'uuid' not found", null);
+                        break;
+                    }
+
                     String address;
+                    String uuid = call.argument("uuid");
                     try {
                         address = call.argument("address");
                         if (!BluetoothAdapter.checkBluetoothAddress(address)) {
@@ -1004,7 +1010,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
 
                     AsyncTask.execute(() -> {
                         try {
-                            connection.connect(address);
+                            connection.connect(address, uuid);
                             activity.runOnUiThread(() -> result.success(id));
                         } catch (Exception ex) {
                             activity.runOnUiThread(() -> result.error("connect_error", ex.getMessage(), exceptionToString(ex)));
