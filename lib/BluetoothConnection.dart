@@ -56,11 +56,19 @@ class BluetoothConnection {
   }
 
   /// Returns connection to given address.
-  static Future<BluetoothConnection> toAddress(String? address, String? uuid) async {
+  static Future<BluetoothConnection> toAddressUuid(String? address, String? uuid) async {
     // Sorry for pseudo-factory, but `factory` keyword disallows `Future`.
     return BluetoothConnection._consumeConnectionID(await FlutterBluetoothSerial
         ._methodChannel
         .invokeMethod('connect', {"address": address, "uuid" : uuid}));
+  }
+
+  /// Returns connection to given address.
+  static Future<BluetoothConnection> toAddress(String? address) async {
+    // Sorry for pseudo-factory, but `factory` keyword disallows `Future`.
+    return BluetoothConnection._consumeConnectionID(await FlutterBluetoothSerial
+        ._methodChannel
+        .invokeMethod('connect', {"address": address}));
   }
 
   /// Should be called to make sure the connection is closed and resources are freed (sockets/channels).
