@@ -313,7 +313,11 @@ class _MainPage extends State<MainPage> {
             ElevatedButton(
               child: const Text('Connect to FOX'),
               onPressed: () {
-    BluetoothConnection.toAddress("FF:8D:BB:C2:3C:00").then((connection) {});
+                  BluetoothConnection.toAddress("FF:8D:BB:C2:3C:00").then((connection) {
+                    if (connection.isConnected) {
+                      print("CONNECTED");
+                    }
+                  });
               },
             ),
           ],

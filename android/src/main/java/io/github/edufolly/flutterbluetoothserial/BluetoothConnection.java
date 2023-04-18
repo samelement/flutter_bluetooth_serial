@@ -3,171 +3,71 @@ package io.github.edufolly.flutterbluetoothserial;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.Arrays;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.util.Log;
 
 /// Universal Bluetooth serial connection class (for Java)
 public abstract class BluetoothConnection
 {
-    private final String TAG = "BluetoothConnection";
-
     protected static final UUID DEFAULT_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     protected BluetoothAdapter bluetoothAdapter;
 
     protected ConnectionThread connectionThread = null;
 
-    private BluetoothSocket mBluetoothSocket, mFallBackSocket;
-    private String mRemoteAddress;
-    private UUID mUuid;
-    private int mFirstConnection = 0;
-
     public boolean isConnected() {
         return connectionThread != null && connectionThread.requestedClosing != true;
     }
 
+
+
     public BluetoothConnection(BluetoothAdapter bluetoothAdapter) {
         this.bluetoothAdapter = bluetoothAdapter;
     }
+
+
 
     // @TODO . `connect` could be done perfored on the other thread
     // @TODO . `connect` parameter: timeout
     // @TODO . `connect` other methods than `createRfcommSocketToServiceRecord`, including hidden one raw `createRfcommSocket` (on channel).
     // @TODO ? how about turning it into factoried?
     /// Connects to given device by hardware address
-    public void connect() throws IOException {
+    public void connect(String address, UUID uuid) throws IOException {
         if (isConnected()) {
             throw new IOException("already connected");
         }
 
-        boolean isConnectionEstablished = false;
-
-        BluetoothDevice device = bluetoothAdapter.getRemoteDevice(mRemoteAddress);
+        BluetoothDevice device = bluetoothAdapter.getRemoteDevice(address);
         if (device == null) {
             throw new IOException("device not found");
         }
 
-        mBluetoothSocket = device.createRfcommSocketToServiceRecord(mUuid); // @TODO . introduce ConnectionMethod
-        if (mBluetoothSocket == null) {
+        BluetoothSocket socket = device.createInsecureRfcommSocketToServiceRecord(uuid); // @TODO . introduce ConnectionMethod
+        if (socket == null) {
             throw new IOException("socket connection not established");
         }
 
         // Cancel discovery, even though we didn't start it
         bluetoothAdapter.cancelDiscovery();
 
-        if (mFirstConnection == 0)
-            mFirstConnection = 1;
-        try {
-            mBluetoothSocket.connect();
-            isConnectionEstablished = true;
-        } catch (IOException ioException) {
-            Log.e(TAG, "IO exception: " + ioException.getMessage());
+        socket.connect();
 
-            try {
-                Class<?> clazz = mBluetoothSocket.getRemoteDevice().getClass();
-                Class<?>[] paramTypes = new Class<?>[] {Integer.TYPE};
-                Method m = clazz.getMethod("createRfcommSocket", paramTypes);
-                Object[] params = new Object[] {Integer.valueOf(1)};
-                mFallBackSocket = (BluetoothSocket)m.invoke(mBluetoothSocket.getRemoteDevice(), params);
-                mBluetoothSocket = mFallBackSocket;
-                if (mBluetoothSocket != null) {
-                    mBluetoothSocket.connect();
-                    isConnectionEstablished = true;
-                }else{
-                    Log.d(TAG, "fallback_socket received null....: " + mBluetoothSocket);
-                }
-            } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException | IOException e) {
-                Log.e(TAG, "exception_in_code....: " + e);
-                e.printStackTrace();
-            }
-        }
-
-        if (isConnectionEstablished) {
-            connectionThread = new ConnectionThread(mBluetoothSocket);
-            connectionThread.start();
-        } else {
-            if (mFirstConnection == 1) {
-                mFirstConnection = 2;
-                resetFallBackSocket();
-                reconnectSocket();
-            } else if (mFirstConnection == 2) {
-                mFirstConnection = 3;
-                resetFallBackSocket();
-                reconnectSocket();
-            } else {
-                mFirstConnection = 0;
-                resetFallBackSocket();
-                throw new IOException("socket connection not established...");
-            }
-        }
+        connectionThread = new ConnectionThread(socket);
+        connectionThread.start();
     }
-
-    public void resetFallBackSocket() {
-        mFallBackSocket = null;
-    }
-
-    public void reconnectSocket() throws IOException  {
-        Log.e(TAG, "debug13. Reconnection Bluetooth socket..");
-        Log.d(TAG, "Reconnection Bluetooth socket...");
-        if (mBluetoothSocket == null)
-            throw new IOException("Bluetooth Socket is NULL!");
-
-        StringBuilder errorBuilder = new StringBuilder();
-
-        try {
-            mBluetoothSocket.getInputStream().close();
-        } catch (IOException | NullPointerException e) {
-            e.printStackTrace();
-            Log.e(TAG, "Error closing input stream: " + e.getMessage());
-            errorBuilder.append("Error closing input stream: ").append(e.getMessage()).append(" | ");
-        }
-
-        try {
-            mBluetoothSocket.getOutputStream().close();
-        } catch (IOException | NullPointerException e) {
-            e.printStackTrace();
-            Log.e(TAG, "Error closing output stream: " + e.getMessage());
-            errorBuilder.append("Error closing output stream: ").append(e.getMessage()).append(" | ");
-        }
-
-        try {
-            mBluetoothSocket.close();
-            Thread.sleep(1000);
-        } catch (IOException | InterruptedException | NullPointerException e) {
-            e.printStackTrace();
-            Log.e(TAG, "Error closing bluetooth socket: " + e.getMessage());
-            errorBuilder.append("Error closing bluetooth socket: ").append(e.getMessage()).append(" | ");
-        }
-        try {
-            connect();
-        } catch (IOException e) {
-            e.printStackTrace();
-            Log.e(TAG, "Error starting service: " + e.getMessage());
-            errorBuilder.append("Error starting service: ").append(e.getMessage());
-            throw new IOException(errorBuilder.toString());
-        }
-    }
-
     /// Connects to given device by hardware address (default UUID used)
     public void connect(String address) throws IOException {
-        mRemoteAddress = address;
-        mUuid = DEFAULT_UUID;
-        connect();
+        connect(address, DEFAULT_UUID);
     }
 
     public void connect(String address, String uuid) throws IOException {
-        mRemoteAddress = address;
-        mUuid = UUID.fromString(uuid);
-        connect();
+        connect(address, UUID.fromString(uuid));
     }
-    
+
     /// Disconnects current session (ignore if not connected)
     public void disconnect() {
         if (isConnected()) {
@@ -197,7 +97,7 @@ public abstract class BluetoothConnection
         private final InputStream input;
         private final OutputStream output;
         private boolean requestedClosing = false;
-        
+
         ConnectionThread(BluetoothSocket socket) {
             this.socket = socket;
             InputStream tmpIn = null;
