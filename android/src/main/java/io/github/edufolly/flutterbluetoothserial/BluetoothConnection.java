@@ -64,7 +64,7 @@ public abstract class BluetoothConnection
         connect(address, DEFAULT_UUID);
     }
 
-    public void connect(String address, String uuid) throws IOException {
+    public void connectUuid(String address, String uuid) throws IOException {
         connect(address, UUID.fromString(uuid));
     }
 

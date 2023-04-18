@@ -979,7 +979,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
 
                 ////////////////////////////////////////////////////////////////////////////////
                 /* Connecting and connection */
-                case "connect": {
+                case "connectUuid": {
                     if (!call.hasArgument("address")) {
                         result.error("invalid_argument", "argument 'address' not found", null);
                         break;
@@ -1019,7 +1019,40 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                     });
                     break;
                 }
+                case "connect": {
+                    if (!call.hasArgument("address")) {
+                        result.error("invalid_argument", "argument 'address' not found", null);
+                        break;
+                    }
 
+                    String address;
+                    try {
+                        address = call.argument("address");
+                        if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+                            throw new ClassCastException();
+                        }
+                    } catch (ClassCastException ex) {
+                        result.error("invalid_argument", "'address' argument is required to be string containing remote MAC address", null);
+                        break;
+                    }
+
+                    int id = ++lastConnectionId;
+                    BluetoothConnectionWrapper connection = new BluetoothConnectionWrapper(id, bluetoothAdapter);
+                    connections.put(id, connection);
+
+                    Log.d(TAG, "Connecting to " + address + " (id: " + id + ")");
+
+                    AsyncTask.execute(() -> {
+                        try {
+                            connection.connect(address);
+                            activity.runOnUiThread(() -> result.success(id));
+                        } catch (Exception ex) {
+                            activity.runOnUiThread(() -> result.error("connect_error", ex.getMessage(), exceptionToString(ex)));
+                            connections.remove(id);
+                        }
+                    });
+                    break;
+                }
                 case "write": {
                     if (!call.hasArgument("id")) {
                         result.error("invalid_argument", "argument 'id' not found", null);

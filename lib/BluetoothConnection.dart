@@ -60,7 +60,7 @@ class BluetoothConnection {
     // Sorry for pseudo-factory, but `factory` keyword disallows `Future`.
     return BluetoothConnection._consumeConnectionID(await FlutterBluetoothSerial
         ._methodChannel
-        .invokeMethod('connect', {"address": address, "uuid" : uuid}));
+        .invokeMethod('connectUuid', {"address": address, "uuid" : uuid}));
   }
 
   /// Returns connection to given address.
